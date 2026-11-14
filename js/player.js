@@ -37,8 +37,6 @@ class Player {
         this.lanternAngleSpread = Math.PI / 3.2; // ~56 degrees
         this.lanternActive = true;
         this.lanternFlickerTimer = 0;
-        this.proximityFlicker = 0; // 0 to 1 intensity based on monster proximity
-
         // Scent Trail for Monster's Smell Mechanic
         this.scentTrail = []; // [{x, y, age, isCoal}]
         this.lastScentTime = 0;

@@ -915,8 +915,6 @@ class Game {
                 this.wrapper.classList.remove('screen-glitch');
             }
         }
-        this.player.proximityFlicker = danger;
-
         // 4. Monster Catches Player -> BONE-CHILLING JUMPSCARE!
         const catchDist = this.player.radius + this.monster.radius + 2;
         if (distToMonster < catchDist) {
@@ -1517,16 +1515,13 @@ class Game {
         const screenPX = this.player.x - this.camera.x;
         const screenPY = this.player.y - this.camera.y;
 
-        // 1. Player Lantern Light (flickers erratically when monster approaches!)
+        // 1. Player Lantern Light
         if (this.player.lanternActive) {
-            const prox = this.player.proximityFlicker || 0;
-            const flickerIntensity = 4 + prox * 16;
-            const flicker = (Math.sin(performance.now() * 0.02) * flickerIntensity) + 
-                            ((Math.random() - 0.5) * prox * 25);
-            
-            // Radius reduces as panic/danger sets in, and dampens when hiding in shadows
-            let radius = Math.max(70, (this.player.lanternRadius - prox * 40) + flicker);
-            let beamDist = Math.max(120, (this.player.lanternBeamDist - prox * 60) + flicker);
+            const flicker = Math.sin(performance.now() * 0.02) * 4;
+
+            // Keep the lantern steady when the monster approaches.
+            let radius = this.player.lanternRadius + flicker;
+            let beamDist = this.player.lanternBeamDist + flicker;
             if (this.player.isHiding) {
                 radius *= 0.72;
                 beamDist *= 0.75;
