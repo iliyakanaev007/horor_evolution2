@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Печь Тьмы: Хэллоуинский Лабиринт (Halloween Maze Horror)</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-wrapper">
+        <!-- Main Game Canvas -->
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- VHS Scanline & Static Effect -->
+        <div id="vhs-overlay"></div>
+
+        <!-- Dynamic Fear Red Vignette (Heartbeat pulse) -->
+        <div id="fear-vignette"></div>
+
+        <!-- Monster Alert Warning Banner -->
+        <div id="warning-banner">МОНСТР ЧУЕТ ТВОЙ СЛЕД!</div>
+
+        <!-- JUMPSCARE FULLSCREEN OVERLAY -->
+        <div id="jumpscare-overlay">
+            <img id="jumpscare-image" src="jumpscare.jpg" alt="SCREAMER MONSTER">
+            <div class="screamer-caption">ТЫ ДОБЫЧА!</div>
+        </div>
+
+        <!-- In-Game HUD Overlay -->
+        <div id="ui-container">
+            <!-- Top Bar -->
+            <div class="top-bar">
+                <div class="level-badge">
+                    <div id="hud-level-title" class="level-title">УРОВЕНЬ 1: ДРЕМЛЮЩАЯ ТЕНЬ</div>
+                    <div class="monster-evolution">
+                        <span>ЭВОЛЮЦИЯ МОНСТРА:</span>
+                        <span id="hud-monster-ability" class="monster-ability-icon">СПИТ</span>
+                    </div>
+                </div>
+
+                <div class="furnace-tracker">
+                    <div class="furnace-label">🔥 АДСКАЯ ПЕЧЬ (УГОЛЬ):</div>
+                    <div id="hud-coal-slots" class="coal-slots">
+                        <!-- Coal pips injected dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Bar -->
+            <div class="bottom-bar">
+                <div class="player-status">
+                    <!-- Stamina -->
+                    <div class="stamina-bar-container">
+                        <span id="hud-stamina-label" class="stamina-label">ВЫНОСЛИВОСТЬ [SHIFT]:</span>
+                        <div class="stamina-progress">
+                            <div id="hud-stamina-fill" class="stamina-fill"></div>
+                        </div>
+                    </div>
+                    <!-- Stealth / Shadow Hiding -->
+                    <div id="hud-stealth-badge" class="stealth-badge">
+                        <span class="stealth-icon">👤</span>
+                        <span id="hud-stealth-text">ТЕНЬ [CTRL]: НЕАКТИВНО</span>
+                    </div>
+                    <!-- Inventory -->
+                    <div class="inventory-box">
+                        <span class="inventory-icon">🎒</span>
+                        <span id="hud-inventory-text" class="inventory-text">КАРМАНЫ ПУСТЫ (ИЩИТЕ УГОЛЬ)</span>
+                    </div>
+                </div>
+
+                <button id="sound-toggle-btn" class="sound-toggle">🔊 ЗВУК: ВКЛ [M]</button>
+            </div>
+        </div>
+
+        <!-- MODAL: Start Game -->
+        <div id="start-modal" class="modal-overlay">
+            <div class="modal-content start-modal-content">
+                <div class="start-heading">
+                    <h1>ПЕЧЬ ТЬМЫ</h1>
+                    <h2>Хэллоуинский Лабиринт</h2>
+                    <p>
+                        Найдите уголь в тайных комнатах и принесите его к Адской Печи. Все ловушки изначально принадлежат монстру и срабатывают сразу, когда вы на них наступаете. После срабатывания стойте на разряженной ловушке и удерживайте назначенную клавишу активации 2 секунды, чтобы захватить её или перезарядить свою; затем нажмите эту клавишу, чтобы активировать самую дальнюю готовую ловушку. Улучшения рюкзака увеличивают вместимость до конца уровня. После пятого уровня можно отправиться в необязательный финальный лабиринт.
+                    </p>
+                </div>
+
+                <div class="start-notices">
+                    <div class="brightness-warning" role="note">
+                        ⚠️ Для лучшей видимости увеличьте яркость экрана.
+                    </div>
+                    <div class="ability-announcement">
+                        <h3>⚠️ ЭВОЛЮЦИЯ МОНСТРА</h3>
+                        <p style="margin-bottom: 0; font-size: 14px;">
+                            С каждым уровнем чудовище становится опаснее: начнёт патрулировать, чуять следы, слышать бег и телепортироваться. На шестом уровне оно сможет задуть ваш факел.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="start-actions">
+                    <button id="wall-contrast-toggle" class="contrast-toggle" type="button" aria-pressed="false">
+                        КОНТРАСТНЫЕ СТЕНЫ: ВЫКЛ
+                    </button>
+                    <button id="controls-open-btn" class="spooky-btn controls-open-btn" type="button" aria-haspopup="dialog" aria-controls="controls-modal" aria-expanded="false">
+                        УПРАВЛЕНИЕ
+                    </button>
+                    <button id="start-btn" class="spooky-btn">ВОЙТИ ВО МРАК</button>
+                    <p id="save-status" class="save-status" role="status">Прогресс и настройки сохраняются в этом браузере.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: Controls -->
+        <div id="controls-modal" class="modal-overlay controls-modal hidden" role="dialog" aria-modal="true" aria-labelledby="controls-title">
+            <div class="modal-content controls-modal-content">
+                <h1 id="controls-title">УПРАВЛЕНИЕ</h1>
+                <div class="controls-guide">
+                    <div class="binding-row">
+                        <span>Движение вверх</span>
+                        <button class="key-badge key-binding" type="button" data-action="moveUp" data-index="0"></button>
+                        <button class="key-badge key-binding" type="button" data-action="moveUp" data-index="1"></button>
+                    </div>
+                    <div class="binding-row">
+                        <span>Движение вниз</span>
+                        <button class="key-badge key-binding" type="button" data-action="moveDown" data-index="0"></button>
+                        <button class="key-badge key-binding" type="button" data-action="moveDown" data-index="1"></button>
+                    </div>
+                    <div class="binding-row">
+                        <span>Движение влево</span>
+                        <button class="key-badge key-binding" type="button" data-action="moveLeft" data-index="0"></button>
+                        <button class="key-badge key-binding" type="button" data-action="moveLeft" data-index="1"></button>
+                    </div>
+                    <div class="binding-row">
+                        <span>Движение вправо</span>
+                        <button class="key-badge key-binding" type="button" data-action="moveRight" data-index="0"></button>
+                        <button class="key-badge key-binding" type="button" data-action="moveRight" data-index="1"></button>
+                    </div>
+                    <div class="binding-row">
+                        <span>Спринт</span>
+                        <button class="key-badge key-binding" type="button" data-action="sprint" data-index="0"></button>
+                        <button class="key-badge key-binding" type="button" data-action="sprint" data-index="1"></button>
+                    </div>
+                    <div class="binding-row">
+                        <span>Скрыться в тенях</span>
+                        <button class="key-badge key-binding" type="button" data-action="hide" data-index="0"></button>
+                        <button class="key-badge key-binding" type="button" data-action="hide" data-index="1"></button>
+                        <button class="key-badge key-binding" type="button" data-action="hide" data-index="2"></button>
+                    </div>
+                    <div class="binding-row">
+                        <span>Звук вкл./выкл.</span>
+                        <button class="key-badge key-binding" type="button" data-action="toggleSound" data-index="0"></button>
+                    </div>
+                    <div class="binding-row">
+                        <span>Активировать самую дальнюю готовую ловушку</span>
+                        <button class="key-badge key-binding" type="button" data-action="activateTrap" data-index="0"></button>
+                    </div>
+                    <div class="binding-row binding-help">
+                        <span>Ловушка срабатывает сразу при наступании. Чтобы захватить сработавшую ловушку монстра или перезарядить свою, стойте на разряженной ловушке и удерживайте клавишу активации 2 секунды.</span>
+                    </div>
+                    <div class="binding-row binding-help">
+                        <span>Мышь: направлять луч факела. Подойдите к углю или печи для взаимодействия; ловушки привлекают монстра со второго уровня.</span>
+                    </div>
+                </div>
+                <p id="controls-status" class="controls-status" aria-live="polite">Нажмите на клавишу, затем нажмите новую кнопку. Настройки сохраняются в браузере.</p>
+                <button id="controls-close-btn" class="spooky-btn" type="button">НАЗАД В МЕНЮ</button>
+            </div>
+        </div>
+
+        <!-- MODAL: Level Complete / Evolution Reveal -->
+        <div id="level-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <h1 id="modal-level-title">ПЕЧЬ РАЗОЖЖЕНА!</h1>
+                <h2>МОНСТР ЭВОЛЮЦИОНИРОВАЛ</h2>
+                <div class="ability-announcement">
+                    <h3 id="modal-level-ability">НОВАЯ СПОСОБНОСТЬ</h3>
+                    <p id="modal-level-desc">Описание новой способности монстра.</p>
+                </div>
+                <p>Лабиринт расширился, а пламя печи требует ещё больше угля!</p>
+                <button id="level-btn" class="spooky-btn">СЛЕДУЮЩИЙ УРОВЕНЬ</button>
+            </div>
+        </div>
+
+        <!-- MODAL: Game Over -->
+        <div id="gameover-modal" class="modal-overlay hidden">
+            <div class="modal-content gameover-modal-content">
+                <h1 style="color: #ff1100;">ВАС НАСТИГЛА ТЬМА!</h1>
+                <h2>МОНСТР ПОЙМАЛ ВАС</h2>
+                <p>Огонь в печи угас, и тень поглотила вашу душу...</p>
+                <button id="gameover-wall-contrast-toggle" class="contrast-toggle" type="button" aria-pressed="false">
+                    КОНТРАСТНЫЕ СТЕНЫ: ВЫКЛ
+                </button>
+                <button id="restart-btn" class="spooky-btn">ПОПРОБОВАТЬ СНОВА</button>
+                <button id="gameover-home-btn" class="spooky-btn" type="button">НА ГЛАВНЫЙ ЭКРАН</button>
+            </div>
+        </div>
+
+        <!-- MODAL: Victory -->
+        <div id="victory-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <h1 id="victory-title" style="color: #ffaa00;">ВЫ СБЕЖАЛИ ИЗ ЛАБИРИНТА</h1>
+                <h2 id="victory-subtitle">НО МОНСТР ОСТАЛСЯ В ЖИВЫХ</h2>
+                <p id="victory-text">Вы сбежали из лабиринта, но монстр остался в живых.</p>
+                <button id="optional-level-btn" class="spooky-btn">НЕОБЯЗАТЕЛЬНЫЙ УРОВЕНЬ 6</button>
+                <button id="victory-restart-btn" class="spooky-btn">ИГРАТЬ ЗАНОВО</button>
+            </div>
+        </div>
+
+        <!-- Optional sixth-level ending cutscene -->
+        <div id="ending-cutscene" class="ending-cutscene hidden" aria-live="polite">
+            <div id="cutscene-scene" class="cutscene-scene collapse">
+                <div class="cutscene-world">
+                <div class="cutscene-moon"></div>
+                <div class="cutscene-floor"><i class="floor-rune"></i></div>
+                <div class="cutscene-ruins ruins-back"></div>
+                <div class="cutscene-pillars" aria-hidden="true">
+                    <i class="pillar pillar-left-back"></i>
+                    <i class="pillar pillar-right-back"></i>
+                    <i class="pillar pillar-left-front"></i>
+                    <i class="pillar pillar-right-front"></i>
+                </div>
+                <div class="cutscene-ruins ruins-front"></div>
+                <div class="cutscene-maze"></div>
+                <div class="cutscene-monster" aria-hidden="true">
+                    <svg viewBox="0 0 220 260" role="presentation">
+                        <path class="monster-limb" d="M76 124 C42 136 50 176 18 197 M145 126 C180 138 170 174 205 193 M86 172 C64 197 79 218 51 244 M137 174 C158 197 145 222 174 247"/>
+                        <path class="monster-cloak" d="M110 27 C73 29 55 58 61 100 C65 126 51 144 47 176 Q66 166 75 153 Q72 183 91 199 Q100 183 109 173 Q124 193 141 201 Q143 178 140 157 Q157 171 176 173 L157 112 C168 69 145 31 110 27Z"/>
+                        <path class="monster-mask" d="M83 67 Q109 47 137 67 L132 103 Q110 119 88 103Z"/>
+                        <path class="monster-eye" d="M91 83 Q99 77 105 85 Q100 94 91 91Z M129 83 Q121 77 115 85 Q120 94 129 91Z"/>
+                        <path class="monster-mark" d="M106 105 Q110 109 114 105"/>
+                    </svg>
+                </div>
+                <div class="cutscene-player" aria-hidden="true">
+                    <svg viewBox="0 0 120 190" role="presentation">
+                        <path class="player-cloak" d="M60 70 C32 71 20 96 25 126 L12 166 Q25 181 60 181 Q95 181 108 166 L95 126 C100 96 88 71 60 70Z"/>
+                        <path class="player-hood" d="M60 13 C37 13 25 31 29 52 Q31 70 45 79 L75 79 Q89 70 91 52 C95 31 83 13 60 13Z"/>
+                        <path class="player-mask" d="M39 49 Q60 40 81 49 L76 65 Q60 73 44 65Z"/>
+                        <path class="player-eye" d="M45 55 Q50 51 55 55 L55 59 Q50 62 45 59Z M75 55 Q70 51 65 55 L65 59 Q70 62 75 59Z"/>
+                        <path class="player-scarf" d="M40 77 Q60 88 80 77 L85 88 Q77 97 64 98 L77 116 L61 108 L48 119 L55 97 Q44 94 35 88Z"/>
+                        <path class="lantern-handle" d="M86 118 L97 111"/>
+                        <circle class="lantern-glow" cx="103" cy="108" r="13"/>
+                        <path class="lantern-frame" d="M96 100 L108 100 L111 113 L93 113Z M99 97 L105 97"/>
+                    </svg>
+                </div>
+                <div class="cutscene-fog fog-back"></div>
+                <div class="cutscene-fog fog-front"></div>
+                <div class="cutscene-ash" aria-hidden="true">
+                    <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                </div>
+                </div>
+            </div>
+            <div class="cutscene-caption">
+                <p id="cutscene-caption">Земля дрожит. Стены лабиринта начинают рушиться...</p>
+                <button id="cutscene-skip-btn" class="spooky-btn">ПРОПУСТИТЬ КАТСЦЕНУ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/audio.js"></script>
+    <script src="js/maze.js"></script>
+    <script src="js/particles.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/monster.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>

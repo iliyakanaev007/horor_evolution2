@@ -1,0 +1,7 @@
+[9180:22716:1031/124632.920:ERROR:chrome\browser\edge_family_safety\fcfd_client_helper.cc:128] FcfdClientHelper::OnAccessTokenAcquired: Failed to retrieve access token
+[9180:22716:1031/124632.934:ERROR:components\device_event_log\device_event_log_impl.cc:257] [12:46:32.935] USB: usb_device_win.cc:66 Failed to open \\?\usb#root_hub30#5&833cf9d&0&0#{f18a0e88-c30c-11d0-8815-00a0c906bed8}: Отказано в доступе. (0x5)
+[9180:22716:1031/124632.936:ERROR:components\device_event_log\device_event_log_impl.cc:257] [12:46:32.936] USB: usb_device_win.cc:66 Failed to open \\?\usb#root_hub30#5&fc95843&0&0#{f18a0e88-c30c-11d0-8815-00a0c906bed8}: Отказано в доступе. (0x5)
+[9180:22716:1031/124632.937:ERROR:components\device_event_log\device_event_log_impl.cc:257] [12:46:32.938] USB: usb_device_win.cc:66 Failed to open \\?\usb#root_hub30#5&833cf9d&0&0#{f18a0e88-c30c-11d0-8815-00a0c906bed8}: Отказано в доступе. (0x5)
+[9180:22716:1031/124632.938:ERROR:components\device_event_log\device_event_log_impl.cc:257] [12:46:32.938] USB: usb_device_win.cc:66 Failed to open \\?\usb#root_hub30#5&fc95843&0&0#{f18a0e88-c30c-11d0-8815-00a0c906bed8}: Отказано в доступе. (0x5)
+[9180:22716:1031/124632.954:ERROR:chrome\browser\component_updater\edge_optimization_guide_models_manifest_installer.cc:264] Edge LLM: catalog update failed: 5
+[9180:22716:1031/124632.965:ERROR:chrome\browser\component_updater\edge_language_detection_model_installer.cc:97] Edge Language Detection Model: On-demand update failed with error: 5
