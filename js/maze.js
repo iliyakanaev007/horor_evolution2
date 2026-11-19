@@ -12,6 +12,8 @@ class Maze {
         this.upgradeNodes = []; // {x, y, active: true, roomId} in grid coords
         this.teleports = []; // [{ id, roomId, x, y, worldX, worldY, targetIndex, color, glow, name, pairId }]
         this.traps = []; // {x, y, worldX, worldY, armed, owner, claimProgress, capturedByPlayer}
+        this.spikeTraps = [];
+        this.levers = [];
         this.jackOLanterns = []; // {x, y, flickerPhase: float}
         this.wallLanterns = []; // {x, y, wallX, wallY, flickerPhase}
         this.props = []; // decorative {x, y, type: 'skull'|'web'}
@@ -82,9 +84,102 @@ class Maze {
         }
 
         this.generateTraps(Math.max(3, Math.floor(this.cols / 9)));
+        this.generateSpikeTraps(Math.max(2, Math.floor(this.cols / 10)), Math.max(2, Math.floor(this.cols / 13)));
 
         // Place Jack-o'-lanterns & Props (avoiding coal and teleport centers)
         this.spawnDecorations();
+    }
+
+    generateSpikeTraps(automaticCount, leverCount) {
+        this.spikeTraps = [];
+        this.levers = [];
+
+        const startX = Math.floor(this.cols / 2);
+        const startY = Math.floor(this.rows / 2) + 2;
+        const occupied = (x, y) =>
+            this.coalNodes.some(node => node.x === x && node.y === y) ||
+            this.upgradeNodes.some(node => node.x === x && node.y === y) ||
+            this.teleports.some(node => node.x === x && node.y === y) ||
+            this.traps.some(trap => trap.x === x && trap.y === y) ||
+            this.spikeTraps.some(trap => trap.x === x && trap.y === y) ||
+            this.levers.some(lever => lever.x === x && lever.y === y);
+        const candidates = [];
+
+        for (let y = 1; y < this.rows - 1; y++) {
+            for (let x = 1; x < this.cols - 1; x++) {
+                if (this.grid[y][x] !== 0 || this.isRoomFloor(x, y) || occupied(x, y)) continue;
+                if (Math.hypot(x - startX, y - startY) < 5) continue;
+                candidates.push({ x, y });
+            }
+        }
+
+        candidates.sort(() => Math.random() - 0.5);
+        const leverStart = {
+            x: startX,
+            y: startY,
+            worldX: (startX + 0.5) * this.tileSize,
+            worldY: (startY + 0.5) * this.tileSize
+        };
+        this.levers.push({ ...leverStart, trapId: null });
+
+        const placeTrap = (kind, candidate) => {
+            const id = this.spikeTraps.length;
+            const startsRaised = Math.random() < 0.5;
+            this.spikeTraps.push({
+                id,
+                ...candidate,
+                worldX: (candidate.x + 0.5) * this.tileSize,
+                worldY: (candidate.y + 0.5) * this.tileSize,
+                kind,
+                raised: startsRaised,
+                phase: kind === 'automatic' && startsRaised ? 'raised' : 'hidden',
+                timer: kind === 'automatic' && startsRaised ? 3 : 0,
+                occupied: false
+            });
+            return id;
+        };
+
+        for (const candidate of candidates) {
+            if (this.spikeTraps.filter(trap => trap.kind === 'automatic').length >= automaticCount) break;
+            if (this.spikeTraps.every(trap =>
+                Math.hypot(candidate.x - trap.x, candidate.y - trap.y) >= 3
+            )) {
+                placeTrap('automatic', candidate);
+            }
+        }
+
+        for (const candidate of candidates) {
+            if (this.spikeTraps.filter(trap => trap.kind === 'lever').length >= leverCount) break;
+            if (occupied(candidate.x, candidate.y)) continue;
+            if (this.spikeTraps.every(trap =>
+                Math.hypot(candidate.x - trap.x, candidate.y - trap.y) >= 3
+            )) {
+                const lever = this.levers.find(existing => existing.trapId === null) ||
+                    this.findLeverCandidate(candidates, occupied, candidate);
+                if (!lever) continue;
+                lever.trapId = placeTrap('lever', candidate);
+            }
+        }
+    }
+
+    findLeverCandidate(candidates, occupied, excludedCandidate) {
+        for (const candidate of candidates) {
+            if (candidate === excludedCandidate) continue;
+            if (occupied(candidate.x, candidate.y)) continue;
+            if (this.levers.every(lever =>
+                Math.hypot(candidate.x - lever.x, candidate.y - lever.y) >= 4
+            )) {
+                const lever = {
+                    ...candidate,
+                    worldX: (candidate.x + 0.5) * this.tileSize,
+                    worldY: (candidate.y + 0.5) * this.tileSize,
+                    trapId: null
+                };
+                this.levers.push(lever);
+                return lever;
+            }
+        }
+        return null;
     }
 
     generateTraps(count) {
@@ -339,6 +434,8 @@ class Maze {
                     if (this.coalNodes.some(c => c.x === x && c.y === y)) continue;
                     if (this.upgradeNodes.some(u => u.x === x && u.y === y)) continue;
                     if (this.teleports.some(t => t.x === x && t.y === y)) continue;
+                    if (this.spikeTraps.some(trap => trap.x === x && trap.y === y)) continue;
+                    if (this.levers.some(lever => lever.x === x && lever.y === y)) continue;
 
                     // Check if adjacent to a wall
                     const nearWall = (this.grid[y-1][x] === 1 || this.grid[y+1][x] === 1 || 
@@ -394,7 +491,7 @@ class Maze {
     }
 
     // Circle vs wall collision
-    checkCollision(x, y, radius) {
+    checkCollision(x, y, radius, entity = 'player', previousX = x, previousY = y) {
         const minGx = Math.floor((x - radius) / this.tileSize);
         const maxGx = Math.floor((x + radius) / this.tileSize);
         const minGy = Math.floor((y - radius) / this.tileSize);
@@ -420,7 +517,37 @@ class Maze {
                 }
             }
         }
+
+        if (entity === 'player') {
+            for (const trap of this.spikeTraps) {
+                if (!trap.raised) continue;
+                const tileLeft = trap.x * this.tileSize;
+                const tileTop = trap.y * this.tileSize;
+                const closestX = Math.max(tileLeft, Math.min(x, tileLeft + this.tileSize));
+                const closestY = Math.max(tileTop, Math.min(y, tileTop + this.tileSize));
+                const distX = x - closestX;
+                const distY = y - closestY;
+                if (distX * distX + distY * distY >= radius * radius) continue;
+
+                const previousClosestX = Math.max(tileLeft, Math.min(previousX, tileLeft + this.tileSize));
+                const previousClosestY = Math.max(tileTop, Math.min(previousY, tileTop + this.tileSize));
+                const previousDistX = previousX - previousClosestX;
+                const previousDistY = previousY - previousClosestY;
+                const wasAlreadyBlocked = previousDistX * previousDistX + previousDistY * previousDistY < radius * radius;
+                const previousDist = Math.hypot(previousX - trap.worldX, previousY - trap.worldY);
+                const nextDist = Math.hypot(x - trap.worldX, y - trap.worldY);
+                if (wasAlreadyBlocked && nextDist > previousDist) continue;
+                return true;
+            }
+        }
         return false;
+    }
+
+    getSpikeSpeedMultiplier(x, y, radius) {
+        return this.spikeTraps.some(trap =>
+            trap.raised &&
+            Math.hypot(x - trap.worldX, y - trap.worldY) <= this.tileSize * 0.75 + radius
+        ) ? 0.4 : 1;
     }
 
     // Line of sight raycasting between world points

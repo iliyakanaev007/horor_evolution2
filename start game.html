@@ -22,7 +22,7 @@
 
         <!-- JUMPSCARE FULLSCREEN OVERLAY -->
         <div id="jumpscare-overlay">
-            <img id="jumpscare-image" src="jumpscare.jpg" alt="SCREAMER MONSTER">
+            <div id="jumpscare-image" role="img" aria-label="SCREAMER MONSTER"></div>
             <div class="screamer-caption">ТЫ ДОБЫЧА!</div>
         </div>
 
@@ -152,11 +152,18 @@
                         <span>Активировать самую дальнюю готовую ловушку</span>
                         <button class="key-badge key-binding" type="button" data-action="activateTrap" data-index="0"></button>
                     </div>
+                    <div class="binding-row">
+                        <span>Переключить шипы у рычага</span>
+                        <button class="key-badge key-binding" type="button" data-action="activateLever" data-index="0"></button>
+                    </div>
                     <div class="binding-row binding-help">
                         <span>Ловушка срабатывает сразу при наступании. Чтобы захватить сработавшую ловушку монстра или перезарядить свою, стойте на разряженной ловушке и удерживайте клавишу активации 2 секунды.</span>
                     </div>
                     <div class="binding-row binding-help">
-                        <span>Мышь: направлять луч факела. Подойдите к углю или печи для взаимодействия; ловушки привлекают монстра со второго уровня.</span>
+                        <span>Автоматические шипы поднимаются через 1,5 секунды после наступания и убираются через 3 секунды. Нажатие любого рычага переключает все рычажные шипы синхронно; один рычаг находится у места появления. Поднятые шипы блокируют игрока, но замедляют монстра.</span>
+                    </div>
+                    <div class="binding-row binding-help">
+                        <span>На 4 уровне монстр слышит рычаги и подъём автоматических шипов в пределах слуха. Мышь: направлять луч факела. Подойдите к углю или печи для взаимодействия.</span>
                     </div>
                 </div>
                 <p id="controls-status" class="controls-status" aria-live="polite">Нажмите на клавишу, затем нажмите новую кнопку. Настройки сохраняются в браузере.</p>

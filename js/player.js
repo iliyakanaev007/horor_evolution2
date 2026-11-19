@@ -147,11 +147,11 @@ class Player {
             const stepY = (moveY / len) * this.speed * dt;
 
             // Try X movement
-            if (!maze.checkCollision(this.x + stepX, this.y, this.radius)) {
+            if (!maze.checkCollision(this.x + stepX, this.y, this.radius, 'player', this.x, this.y)) {
                 this.x += stepX;
             }
             // Try Y movement
-            if (!maze.checkCollision(this.x, this.y + stepY, this.radius)) {
+            if (!maze.checkCollision(this.x, this.y + stepY, this.radius, 'player', this.x, this.y)) {
                 this.y += stepY;
             }
 

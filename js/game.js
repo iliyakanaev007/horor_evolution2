@@ -27,6 +27,7 @@ class Game {
         // Input
         this.keys = {};
         this.trapActivationRequested = false;
+        this.leverActivationRequested = false;
         this.trapClaimDuration = 2;
         this.mousePos = { x: 0, y: 0 };
         this.mouseWorldPos = { x: 0, y: 0 };
@@ -64,7 +65,7 @@ class Game {
             4: {
                 title: "УРОВЕНЬ 4: ЯРОСТЬ И СЛУХ",
                 abilityName: "Способности: ЧУТКИЙ СЛУХ И РЫВОК",
-                abilityDesc: "Монстр слышит ваш топот при спринте! А завидев вас, совершает бешеный рывок на полной скорости!",
+                abilityDesc: "Монстр слышит спринт, нажатие рычага и подъём автоматических шипов. Если не видит вас, идёт проверить источник звука; завидев, совершает бешеный рывок!",
                 cols: 27, rows: 27, coal: 5
             },
             5: {
@@ -89,7 +90,8 @@ class Game {
             sprint: ['ShiftLeft', 'ShiftRight'],
             hide: ['ControlLeft', 'ControlRight', 'KeyC'],
             toggleSound: ['KeyM'],
-            activateTrap: ['Space']
+            activateTrap: ['Space'],
+            activateLever: ['KeyE']
         };
         this.bindings = this.cloneBindings(this.defaultBindings);
         this.soundMuted = false;
@@ -199,7 +201,7 @@ class Game {
 
                 for (const [action, defaults] of Object.entries(this.defaultBindings)) {
                     const codes = saved.bindings[action];
-                    if (codes === undefined && action === 'activateTrap') {
+                    if (codes === undefined) {
                         const defaultCode = defaults.find(code => !seenCodes.has(code));
                         if (defaultCode) {
                             candidate[action] = [defaultCode];
@@ -412,6 +414,10 @@ class Game {
                 e.preventDefault();
                 if (!e.repeat) this.trapActivationRequested = true;
             }
+            if (this.state === 'PLAYING' && this.bindings.activateLever.includes(e.code)) {
+                e.preventDefault();
+                if (!e.repeat) this.leverActivationRequested = true;
+            }
             if (this.bindings.toggleSound.includes(e.code)) this.toggleSound();
 
             const boundCodes = Object.values(this.bindings).flat();
@@ -596,6 +602,7 @@ class Game {
         this.dom.endingCutscene.classList.add('hidden');
         this.currentLevel = level;
         this.trapActivationRequested = false;
+        this.leverActivationRequested = false;
         const config = this.levelData[this.currentLevel];
 
         const shouldResume = level !== 6 && resumeCheckpoint && this.progress.checkpointLevel === level;
@@ -694,6 +701,12 @@ class Game {
         this.player.update(dt, this.getPlayerInput(), this.mouseWorldPos, this.maze, this.particleSystem);
         this.monster.update(dt, this.player, this.maze, this.particleSystem, (t, d) => this.setWarning(t, d));
         this.particleSystem.update(dt);
+
+        this.updateSpikeTraps(dt);
+        if (this.leverActivationRequested) {
+            this.leverActivationRequested = false;
+            this.activateNearbyLever();
+        }
 
         const trapInteractionUnderPlayer = this.maze.traps.some(trap =>
             (trap.owner === 'monster' || !trap.armed) &&
@@ -939,6 +952,78 @@ class Game {
         }
     }
 
+    updateSpikeTraps(dt) {
+        for (const trap of this.maze.spikeTraps) {
+            if (trap.kind !== 'automatic') continue;
+
+            if (trap.phase === 'arming' || trap.phase === 'raised') {
+                trap.timer -= dt;
+                if (trap.timer <= 0) {
+                    if (trap.phase === 'arming') {
+                        trap.phase = 'raised';
+                        trap.raised = true;
+                        trap.timer = 3;
+                        window.soundEngine.playTrapTrigger();
+                        this.monster.reportNoise(trap.worldX, trap.worldY, 'ШИПЫ');
+                    } else {
+                        trap.phase = 'hidden';
+                        trap.raised = false;
+                        trap.timer = 0;
+                    }
+                }
+            }
+
+            const playerOnTrap = Math.hypot(
+                this.player.x - trap.worldX,
+                this.player.y - trap.worldY
+            ) <= this.player.radius + 10;
+            const monsterOnTrap = Math.hypot(
+                this.monster.x - trap.worldX,
+                this.monster.y - trap.worldY
+            ) <= this.monster.radius + 10;
+            const occupied = playerOnTrap || monsterOnTrap;
+
+            if (!occupied) trap.occupied = false;
+            if (occupied && !trap.occupied && trap.phase === 'hidden') {
+                trap.occupied = true;
+                trap.phase = 'arming';
+                trap.timer = 1.5;
+            } else if (occupied) {
+                trap.occupied = true;
+            }
+        }
+    }
+
+    activateNearbyLever() {
+        const nearbyLever = this.maze.levers.reduce((nearest, lever) => {
+            const distance = Math.hypot(this.player.x - lever.worldX, this.player.y - lever.worldY);
+            return distance <= this.player.radius + 25 &&
+                (!nearest || distance < nearest.distance)
+                ? { lever, distance }
+                : nearest;
+        }, null);
+
+        if (!nearbyLever) {
+            this.setWarning("Рядом нет рычага.", 1600);
+            return;
+        }
+
+        const trap = this.maze.spikeTraps[nearbyLever.lever.trapId];
+        if (!trap) {
+            this.setWarning("Этот рычаг не связан с ловушкой.", 1600);
+            return;
+        }
+
+        trap.raised = !trap.raised;
+        for (const linkedLever of this.maze.levers) {
+            const linkedTrap = this.maze.spikeTraps[linkedLever.trapId];
+            if (linkedTrap) linkedTrap.raised = trap.raised;
+        }
+        window.soundEngine.playTrapTrigger();
+        this.monster.reportNoise(this.player.x, this.player.y, 'РЫЧАГ');
+        this.setWarning(trap.raised ? "Шипы подняты!" : "Шипы убраны.", 1600);
+    }
+
     // --- FULLSCREEN TERRIFYING JUMPSCARE SEQUENCE ---
     triggerJumpscare() {
         this.state = 'JUMPSCARE';
@@ -1072,6 +1157,7 @@ class Game {
 
         // 3. Traps
         this.renderTraps(this.ctx);
+        this.renderSpikeTraps(this.ctx);
 
         // 4. Teleport Portals
         this.renderTeleports(this.ctx);
@@ -1153,6 +1239,91 @@ class Game {
                 ctx.beginPath();
                 ctx.arc(0, 0, 20, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
                 ctx.stroke();
+            }
+            ctx.restore();
+        }
+    }
+
+    renderSpikeTraps(ctx) {
+        const now = performance.now() * 0.006;
+        const tileSize = this.maze.tileSize;
+
+        for (const trap of this.maze.spikeTraps) {
+            ctx.save();
+            ctx.translate(trap.worldX, trap.worldY);
+            const stateColor = trap.kind === 'lever'
+                ? (trap.raised ? '#d74c42' : '#8bd18a')
+                : (trap.phase === 'arming' ? '#d88a32' : '#68616b');
+            ctx.fillStyle = trap.kind === 'lever'
+                ? (trap.raised ? 'rgba(215, 76, 66, 0.16)' : 'rgba(139, 209, 138, 0.12)')
+                : '#17151a';
+            ctx.strokeStyle = stateColor;
+            ctx.lineWidth = 2;
+            ctx.shadowColor = stateColor;
+            ctx.shadowBlur = trap.kind === 'lever' ? 8 : 0;
+            ctx.fillRect(-tileSize * 0.38, -tileSize * 0.38, tileSize * 0.76, tileSize * 0.76);
+            ctx.strokeRect(-tileSize * 0.38, -tileSize * 0.38, tileSize * 0.76, tileSize * 0.76);
+
+            if (trap.phase === 'arming') {
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 0.5 + Math.sin(now) * 0.35;
+                ctx.strokeStyle = '#ffae45';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(-tileSize * 0.32, -tileSize * 0.32, tileSize * 0.64, tileSize * 0.64);
+            }
+
+            if (trap.raised) {
+                ctx.fillStyle = trap.kind === 'lever' ? stateColor : '#c9c3cf';
+                ctx.strokeStyle = trap.kind === 'lever' ? stateColor : '#f2d8ff';
+                ctx.shadowColor = trap.kind === 'lever' ? stateColor : '#bb79df';
+                ctx.shadowBlur = 8;
+                for (let row = -1; row <= 1; row++) {
+                    for (let col = -1; col <= 1; col++) {
+                        const x = col * 10;
+                        const y = row * 10;
+                        ctx.beginPath();
+                        ctx.moveTo(x - 4, y + 5);
+                        ctx.lineTo(x, y - 6);
+                        ctx.lineTo(x + 4, y + 5);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+                    }
+                }
+            } else {
+                ctx.fillStyle = trap.kind === 'lever' ? stateColor : '#77717b';
+                for (let i = -1; i <= 1; i++) {
+                    ctx.fillRect(i * 11 - 3, -2, 6, 4);
+                }
+            }
+            ctx.restore();
+        }
+
+        for (const lever of this.maze.levers) {
+            const trap = this.maze.spikeTraps[lever.trapId];
+            if (!trap) continue;
+
+            ctx.save();
+            ctx.translate(lever.worldX, lever.worldY);
+            ctx.fillStyle = '#30271f';
+            ctx.strokeStyle = '#d5a35b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 10, 7, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.strokeStyle = trap.raised ? '#d74c42' : '#8bd18a';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(trap.raised ? 4 : -4, trap.raised ? -15 : -12);
+            ctx.stroke();
+
+            if (Math.hypot(this.player.x - lever.worldX, this.player.y - lever.worldY) <= this.player.radius + 32) {
+                ctx.fillStyle = '#fff1c4';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('E', 0, 22);
             }
             ctx.restore();
         }

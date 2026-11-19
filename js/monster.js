@@ -36,6 +36,8 @@ class Monster {
         this.trapQueue = [];
         this.trapTarget = null;
         this.trapPaused = false;
+        this.pendingNoise = null;
+        this.investigatingNoise = false;
 
         // Sniff ability (Level 3+)
         this.sniffCooldown = 6.0;
@@ -75,6 +77,8 @@ class Monster {
         this.trapQueue = [];
         this.trapTarget = null;
         this.trapPaused = false;
+        this.pendingNoise = null;
+        this.investigatingNoise = false;
 
         if (this.level === 1) {
             this.state = MONSTER_STATES.DORMANT;
@@ -187,6 +191,27 @@ class Monster {
         const hasLOS = maze.hasLineOfSight(this.x, this.y, player.x, player.y);
 
         const canSeePlayer = hasLOS && distToPlayer <= this.sightDistance;
+        if (this.level >= 4 && this.pendingNoise) {
+            const noise = this.pendingNoise;
+            this.pendingNoise = null;
+            const noiseDistance = Math.hypot(noise.x - this.x, noise.y - this.y);
+            const canInvestigateNoise = [
+                MONSTER_STATES.PATROL,
+                MONSTER_STATES.SEARCHING,
+                MONSTER_STATES.SNIFFING,
+                MONSTER_STATES.TRACKING
+            ].includes(this.state);
+
+            if (canInvestigateNoise && !canSeePlayer && noiseDistance <= this.hearingDistance) {
+                this.targetPos = { x: noise.x, y: noise.y };
+                this.path = maze.findPath(this.x, this.y, noise.x, noise.y);
+                this.state = MONSTER_STATES.TRACKING;
+                this.investigatingNoise = true;
+                window.soundEngine.playMonsterGrowl();
+                setWarning(`МОНСТР УСЛЫШАЛ ${noise.source.toUpperCase()} И ИДЁТ ПРОВЕРИТЬ ЗВУК!`, 2200);
+            }
+        }
+
         if (player.isHiding && !canSeePlayer &&
             (this.state === MONSTER_STATES.CHASE || this.state === MONSTER_STATES.CHARGING)) {
             this.state = MONSTER_STATES.SEARCHING;
@@ -223,7 +248,8 @@ class Monster {
         // 3. Scent Check (Level 3+)
         if (this.level >= 3) {
             // If player is actively hiding in shadows, monster loses current scent tracking immediately
-            if (player.isHiding && (this.state === MONSTER_STATES.TRACKING || this.state === MONSTER_STATES.SNIFFING)) {
+            if (player.isHiding && !this.investigatingNoise &&
+                (this.state === MONSTER_STATES.TRACKING || this.state === MONSTER_STATES.SNIFFING)) {
                 this.state = MONSTER_STATES.SEARCHING;
                 this.stateTimer = 2.5;
                 this.targetPos = null;
@@ -310,6 +336,11 @@ class Monster {
         this.trapQueue.push(trap);
     }
 
+    reportNoise(x, y, source) {
+        if (this.level < 4) return;
+        this.pendingNoise = { x, y, source };
+    }
+
     // --- Handlers ---
     updatePatrol(dt, maze) {
         if (!this.targetPos || this.path.length === 0) {
@@ -375,13 +406,14 @@ class Monster {
         const len = Math.hypot(dx, dy);
         if (len > 0) {
             this.angle = Math.atan2(dy, dx);
-            const stepX = (dx / len) * this.currentSpeed * dt;
-            const stepY = (dy / len) * this.currentSpeed * dt;
+            const step = this.currentSpeed * maze.getSpikeSpeedMultiplier(this.x, this.y, this.radius) * dt;
+            const stepX = (dx / len) * step;
+            const stepY = (dy / len) * step;
 
-            if (!maze.checkCollision(this.x + stepX, this.y, this.radius)) {
+            if (!maze.checkCollision(this.x + stepX, this.y, this.radius, 'monster')) {
                 this.x += stepX;
             }
-            if (!maze.checkCollision(this.x, this.y + stepY, this.radius)) {
+            if (!maze.checkCollision(this.x, this.y + stepY, this.radius, 'monster')) {
                 this.y += stepY;
             }
         }
@@ -430,6 +462,7 @@ class Monster {
         this.followPath(dt, maze, () => {
             this.state = MONSTER_STATES.SEARCHING;
             this.stateTimer = 2.0;
+            this.investigatingNoise = false;
         });
     }
 
@@ -492,7 +525,7 @@ class Monster {
             }
         } else {
             this.angle = Math.atan2(dy, dx);
-            const step = this.currentSpeed * dt;
+            const step = this.currentSpeed * maze.getSpikeSpeedMultiplier(this.x, this.y, this.radius) * dt;
             this.x += (dx / dist) * step;
             this.y += (dy / dist) * step;
         }
