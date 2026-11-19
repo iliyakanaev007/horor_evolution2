@@ -22,7 +22,45 @@
 
         <!-- JUMPSCARE FULLSCREEN OVERLAY -->
         <div id="jumpscare-overlay">
-            <div id="jumpscare-image" role="img" aria-label="SCREAMER MONSTER"></div>
+            <div id="jumpscare-image" role="img" aria-label="SCREAMER MONSTER">
+                <svg class="jumpscare-face" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                    <defs>
+                        <radialGradient id="faceSkin" cx="50%" cy="42%" r="62%">
+                            <stop offset="0" stop-color="#d1b9a7"/>
+                            <stop offset="0.38" stop-color="#7e6665"/>
+                            <stop offset="0.72" stop-color="#351719"/>
+                            <stop offset="1" stop-color="#090308"/>
+                        </radialGradient>
+                        <radialGradient id="eyeGlow" cx="50%" cy="50%" r="50%">
+                            <stop offset="0" stop-color="#fff8c7"/>
+                            <stop offset="0.18" stop-color="#e9dfb0"/>
+                            <stop offset="0.48" stop-color="#c72a32"/>
+                            <stop offset="1" stop-color="#180207"/>
+                        </radialGradient>
+                        <filter id="faceNoise">
+                            <feTurbulence baseFrequency="0.018" numOctaves="2" seed="7" result="noise"/>
+                            <feBlend in="SourceGraphic" in2="noise" mode="overlay"/>
+                        </filter>
+                    </defs>
+                    <ellipse cx="500" cy="510" rx="320" ry="390" fill="url(#faceSkin)" filter="url(#faceNoise)"/>
+                    <path d="M180 390 C230 260 350 170 500 170 C650 170 770 260 820 390 C785 220 655 90 500 90 C345 90 215 220 180 390Z" fill="#12070c"/>
+                    <path d="M250 460 Q355 360 445 445 Q380 500 270 510Z" fill="#090309"/>
+                    <path d="M750 460 Q645 360 555 445 Q620 500 730 510Z" fill="#090309"/>
+                    <ellipse cx="355" cy="455" rx="92" ry="58" fill="url(#eyeGlow)" transform="rotate(-8 355 455)"/>
+                    <ellipse cx="645" cy="455" rx="92" ry="58" fill="url(#eyeGlow)" transform="rotate(8 645 455)"/>
+                    <ellipse cx="355" cy="455" rx="28" ry="38" fill="#090308"/>
+                    <ellipse cx="645" cy="455" rx="28" ry="38" fill="#090308"/>
+                    <circle cx="345" cy="444" r="8" fill="#fffbd1"/>
+                    <circle cx="635" cy="444" r="8" fill="#fffbd1"/>
+                    <path d="M500 460 C460 560 470 620 500 655 C530 620 540 560 500 460Z" fill="#251016"/>
+                    <ellipse cx="500" cy="710" rx="260" ry="195" fill="#100309"/>
+                    <ellipse cx="500" cy="700" rx="205" ry="142" fill="#030205"/>
+                    <path d="M330 610 L390 650 L430 610 L470 650 L510 610 L550 650 L590 610 L630 650 L670 610" fill="#d8d0bf" stroke="#d8d0bf" stroke-width="16" stroke-linejoin="round"/>
+                    <path d="M330 770 L390 730 L430 770 L470 730 L510 770 L550 730 L590 770 L630 730 L670 770" fill="#c7bdb0" stroke="#c7bdb0" stroke-width="14" stroke-linejoin="round"/>
+                    <path d="M500 645 C520 700 520 760 500 820 C480 760 480 700 500 645Z" fill="#4a0a11"/>
+                    <path d="M320 690 C290 730 290 795 330 820 M680 690 C710 730 710 795 670 820" fill="none" stroke="#6d121a" stroke-width="18"/>
+                </svg>
+            </div>
             <div class="screamer-caption">ТЫ ДОБЫЧА!</div>
         </div>
 

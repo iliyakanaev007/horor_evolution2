@@ -293,11 +293,11 @@ body, html {
 
 /* JUMPSCARE FULLSCREEN OVERLAY */
 #jumpscare-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    height: 100dvh;
     z-index: 100;
     pointer-events: none;
     display: flex;
@@ -360,20 +360,23 @@ body, html {
 #jumpscare-image {
     position: relative;
     z-index: 0;
-    width: 100vw;
-    height: 100vh;
+    width: 100%;
+    height: 100%;
     max-width: none;
     max-height: none;
-    background:
-        radial-gradient(ellipse 10% 18% at 50% 68%, #090309 0 55%, #d8c2b5 57% 63%, #4d1117 68% 71%, transparent 73%),
-        radial-gradient(ellipse 4.5% 3% at 38% 44%, #f5f0d7 0 18%, #d9222e 28% 58%, #100609 64% 100%),
-        radial-gradient(ellipse 4.5% 3% at 62% 44%, #f5f0d7 0 18%, #d9222e 28% 58%, #100609 64% 100%),
-        radial-gradient(ellipse 5% 12% at 50% 55%, #241016 0 45%, transparent 70%),
-        radial-gradient(ellipse 32% 58% at 50% 49%, #c7b9aa 0 21%, #76636a 43%, #32141a 63%, transparent 66%),
-        radial-gradient(ellipse at center, #470008 0, #020104 72%);
+    overflow: hidden;
+    background: #020104;
+    transform-origin: center;
     animation: screamer-zoom 0.42s cubic-bezier(0.1, 0.9, 0.2, 1) forwards, screamer-rumble 0.045s steps(2, end) infinite alternate;
     filter: saturate(1.3) contrast(1.15);
     box-shadow: 0 0 140px 35px #61000a;
+}
+
+.jumpscare-face {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 @keyframes screamer-zoom {
