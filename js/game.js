@@ -7,6 +7,12 @@ class Game {
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
         this.wrapper = document.getElementById('game-wrapper');
+        this.renderScale = 1;
+        this.targetFps = 60;
+        this.frameBudgetMs = 1000 / 60;
+        this.adaptiveFrameSamples = [];
+        this.lowPowerMode = false;
+        this.lastRenderTime = 0;
 
         // Lighting offscreen buffer
         this.lightCanvas = document.createElement('canvas');
@@ -37,6 +43,8 @@ class Game {
         this.player = null;
         this.monster = null;
         this.particleSystem = new ParticleSystem();
+        this.particleSystem.lowPerformance = this.lowPowerMode;
+        this.particleSystem.maxParticles = this.lowPowerMode ? 140 : 220;
 
         // State: 'START', 'PLAYING', 'LEVEL_UP', 'JUMPSCARE', 'GAMEOVER', 'VICTORY'
         this.state = 'START';
@@ -438,8 +446,8 @@ class Game {
 
         window.addEventListener('mousemove', (e) => {
             const rect = this.canvas.getBoundingClientRect();
-            this.mousePos.x = e.clientX - rect.left;
-            this.mousePos.y = e.clientY - rect.top;
+            this.mousePos.x = (e.clientX - rect.left) * (this.canvas.width / rect.width);
+            this.mousePos.y = (e.clientY - rect.top) * (this.canvas.height / rect.height);
         });
 
         this.dom.startBtn.addEventListener('click', () => {
@@ -537,10 +545,30 @@ class Game {
     }
 
     resize() {
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
+        const cssWidth = window.innerWidth;
+        const cssHeight = window.innerHeight;
+        const hardwareThreads = navigator.hardwareConcurrency || 4;
+        const isLowPowerDevice = hardwareThreads <= 4 ||
+            (navigator.deviceMemory && navigator.deviceMemory <= 4) ||
+            window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        if (isLowPowerDevice) {
+            this.lowPowerMode = true;
+            this.targetFps = 30;
+            this.renderScale = Math.min(0.65, 960 / cssWidth, 540 / cssHeight);
+        } else {
+            this.lowPowerMode = cssWidth * cssHeight > 2073600;
+            this.targetFps = this.lowPowerMode ? 45 : 60;
+            this.renderScale = this.lowPowerMode ? 0.8 : 1;
+        }
+        this.renderScale = Math.max(0.55, Math.min(1, this.renderScale));
+        this.frameBudgetMs = 1000 / this.targetFps;
+
+        this.canvas.width = Math.max(320, Math.round(cssWidth * this.renderScale));
+        this.canvas.height = Math.max(240, Math.round(cssHeight * this.renderScale));
         this.lightCanvas.width = this.canvas.width;
         this.lightCanvas.height = this.canvas.height;
+        if (this.wrapper) this.wrapper.classList.toggle('low-performance', this.lowPowerMode);
     }
 
     setWarning(text, duration = 2200) {
@@ -629,6 +657,8 @@ class Game {
         this.monster.setLevel(this.currentLevel, monsterSpawn.x, monsterSpawn.y);
 
         this.particleSystem = new ParticleSystem();
+        this.particleSystem.lowPerformance = this.lowPowerMode;
+        this.particleSystem.maxParticles = this.lowPowerMode ? 140 : 220;
 
         // Update HUD
         this.updateHUD();
@@ -1437,6 +1467,8 @@ class Game {
         for (const pumpkin of this.maze.jackOLanterns) {
             const px = (pumpkin.x + 0.5) * ts;
             const py = (pumpkin.y + 0.5) * ts;
+            if (px < this.camera.x - 40 || px > this.camera.x + this.canvas.width + 40 ||
+                py < this.camera.y - 40 || py > this.camera.y + this.canvas.height + 40) continue;
 
             ctx.fillStyle = '#d94f00';
             ctx.beginPath();
@@ -1463,6 +1495,8 @@ class Game {
         for (const lantern of this.maze.wallLanterns) {
             const px = (lantern.x + 0.5 + lantern.wallX * 0.34) * ts;
             const py = (lantern.y + 0.5 + lantern.wallY * 0.34) * ts;
+            if (px < this.camera.x - 40 || px > this.camera.x + this.canvas.width + 40 ||
+                py < this.camera.y - 40 || py > this.camera.y + this.canvas.height + 40) continue;
             const flicker = 0.75 + Math.sin(now * 2 + lantern.flickerPhase) * 0.2;
 
             ctx.save();
@@ -1511,6 +1545,8 @@ class Game {
         for (const prop of this.maze.props) {
             const px = (prop.x + 0.5) * ts;
             const py = (prop.y + 0.5) * ts;
+            if (px < this.camera.x - 40 || px > this.camera.x + this.canvas.width + 40 ||
+                py < this.camera.y - 40 || py > this.camera.y + this.canvas.height + 40) continue;
 
             if (prop.type === 'skull') {
                 ctx.fillStyle = '#a69989';
@@ -1745,6 +1781,7 @@ class Game {
         for (const pumpkin of this.maze.jackOLanterns) {
             const ppx = (pumpkin.x + 0.5) * this.maze.tileSize - this.camera.x;
             const ppy = (pumpkin.y + 0.5) * this.maze.tileSize - this.camera.y;
+            if (ppx < -60 || ppx > w + 60 || ppy < -60 || ppy > h + 60) continue;
             const flicker = Math.sin(performance.now() * 0.01 + pumpkin.flickerPhase) * 3;
             const radius = 42 + flicker;
             const pumpkinGlow = lctx.createRadialGradient(ppx, ppy, 5, ppx, ppy, radius);
@@ -1762,6 +1799,7 @@ class Game {
         for (const lantern of this.maze.wallLanterns) {
             const lx = (lantern.x + 0.5 + lantern.wallX * 0.34) * this.maze.tileSize - this.camera.x;
             const ly = (lantern.y + 0.5 + lantern.wallY * 0.34) * this.maze.tileSize - this.camera.y;
+            if (lx < -100 || lx > w + 100 || ly < -100 || ly > h + 100) continue;
             const flicker = Math.sin(performance.now() * 0.012 + lantern.flickerPhase) * 7;
             const radius = 82 + flicker;
             const lanternGlow = lctx.createRadialGradient(lx, ly, 5, lx, ly, radius);
@@ -1780,6 +1818,7 @@ class Game {
             if (!coal.active) continue;
             const cx = (coal.x + 0.5) * this.maze.tileSize - this.camera.x;
             const cy = (coal.y + 0.5) * this.maze.tileSize - this.camera.y;
+            if (cx < -50 || cx > w + 50 || cy < -50 || cy > h + 50) continue;
 
             const cGrad = lctx.createRadialGradient(cx, cy, 4, cx, cy, 38);
             cGrad.addColorStop(0, 'rgba(0, 0, 0, 0.6)');
@@ -1796,6 +1835,7 @@ class Game {
             if (!upgrade.active) continue;
             const ux = (upgrade.x + 0.5) * this.maze.tileSize - this.camera.x;
             const uy = (upgrade.y + 0.5) * this.maze.tileSize - this.camera.y;
+            if (ux < -60 || ux > w + 60 || uy < -60 || uy > h + 60) continue;
             const radius = 44 + Math.sin(performance.now() * 0.006) * 5;
             const upgradeGlow = lctx.createRadialGradient(ux, uy, 4, ux, uy, radius);
             upgradeGlow.addColorStop(0, 'rgba(0, 0, 0, 0.8)');
@@ -1860,11 +1900,32 @@ class Game {
     }
 
     loop(timestamp) {
+        if (timestamp - this.lastRenderTime < this.frameBudgetMs) {
+            requestAnimationFrame((t) => this.loop(t));
+            return;
+        }
+
+        const frameInterval = timestamp - this.lastRenderTime;
+        this.lastRenderTime = timestamp;
         const dt = Math.max(0, Math.min((timestamp - this.lastTime) / 1000, 0.1));
         this.lastTime = timestamp;
 
         this.update(dt);
         this.render();
+
+        if (this.adaptiveFrameSamples.length < 120) {
+            this.adaptiveFrameSamples.push(frameInterval);
+        } else {
+            const average = this.adaptiveFrameSamples.reduce((sum, value) => sum + value, 0) /
+                this.adaptiveFrameSamples.length;
+            if (average > 35 && this.targetFps > 30) {
+                this.targetFps = 30;
+                this.frameBudgetMs = 1000 / this.targetFps;
+                this.renderScale = Math.max(0.55, this.renderScale - 0.08);
+                this.resize();
+            }
+            this.adaptiveFrameSamples = [];
+        }
 
         requestAnimationFrame((t) => this.loop(t));
     }

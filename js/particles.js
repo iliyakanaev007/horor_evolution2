@@ -37,9 +37,8 @@ class Particle {
     draw(ctx) {
         if (this.life <= 0) return;
         const alpha = Math.max(0, this.life / this.maxLife);
-
-        ctx.save();
         ctx.globalAlpha = alpha;
+        ctx.shadowBlur = 0;
 
         if (this.type === 'fog') {
             // Eerie volumetric ground fog
@@ -76,14 +75,16 @@ class Particle {
             ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
             ctx.fill();
         }
-
-        ctx.restore();
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
     }
 }
 
 class ParticleSystem {
     constructor() {
         this.particles = [];
+        this.maxParticles = 300;
+        this.lowPerformance = false;
     }
 
     update(dt) {
@@ -93,6 +94,9 @@ class ParticleSystem {
             if (p.life <= 0) {
                 this.particles.splice(i, 1);
             }
+        }
+        if (this.particles.length > this.maxParticles) {
+            this.particles.splice(0, this.particles.length - this.maxParticles);
         }
     }
 

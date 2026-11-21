@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Creepster&family=Nosifer&family=Roboto:wght@400;700&display=swap');
-
 * {
     box-sizing: border-box;
     margin: 0;
@@ -39,6 +37,15 @@ body, html {
     filter: brightness(0.78);
 }
 
+.low-performance #gameCanvas {
+    filter: brightness(0.82);
+}
+
+.low-performance #vhs-overlay {
+    background-size: 100% 6px, 10px 100%;
+    opacity: 0.35;
+}
+
 /* VHS & Scanline Horror Overlay */
 #vhs-overlay {
     position: absolute;
@@ -65,6 +72,16 @@ body, html {
     37% { transform: translate(4px, -4px) skew(0.25deg); }
     58% { transform: translate(-3px, -2px); }
     79% { transform: translate(5px, 2px) skew(-0.2deg); }
+}
+
+.low-performance .level-badge,
+.low-performance .furnace-tracker,
+.low-performance .stamina-bar-container,
+.low-performance .stealth-badge,
+.low-performance .inventory-box,
+.low-performance .sound-toggle {
+    backdrop-filter: none;
+    box-shadow: none;
 }
 
 /* UI Overlay Layer */
