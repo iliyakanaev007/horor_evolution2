@@ -1045,10 +1045,6 @@ class Game {
         }
 
         trap.raised = !trap.raised;
-        for (const linkedLever of this.maze.levers) {
-            const linkedTrap = this.maze.spikeTraps[linkedLever.trapId];
-            if (linkedTrap) linkedTrap.raised = trap.raised;
-        }
         window.soundEngine.playTrapTrigger();
         this.monster.reportNoise(this.player.x, this.player.y, 'РЫЧАГ');
         this.setWarning(trap.raised ? "Шипы подняты!" : "Шипы убраны.", 1600);
